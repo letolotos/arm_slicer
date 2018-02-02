@@ -77,6 +77,8 @@ def fit_the_points(reg_file):
 	widths = np.array([])
 	astry = np.array([])
 	astry1 = np.array([])
+	slopes = np.array([])
+	slopes_err = np.array([])
 	
 	for i in range(len(x) - 1):
 		if x[i] == 0:
@@ -110,15 +112,17 @@ def fit_the_points(reg_file):
 		
 		while fi0 < fi2:
 			try:
-				r_fi0_scaled, width_fi0, astry_fi0, astry1_fi0 = \
-                   slice_the_arm(fi0, r0, k, R, cont_clwse)
-				width_fi0 = width_fi0 * px_to_arcsec * kpc_to_arcsec
+				r_fi0_scaled, width_fi0, astry_fi0, astry1_fi0, slope, \
+				   slope_err = slice_the_arm(fi0, r0, k, R, cont_clwse)
+				width_fi0 = width_fi0 * arcsec_to_px * kpc_to_arcsec
 				if np.abs(width_fi0) < R_exp and np.abs(astry_fi0) < 150 \
                       and astry1_fi0 < 150:
 					r_scaled = np.append(r_scaled, r_fi0_scaled)
 					widths = np.append(widths, width_fi0)
 					astry = np.append(astry, np.abs(astry_fi0))
 					astry1 = np.append(astry1, astry1_fi0)
+					slopes = np.append(slopes, slope)
+					slopes_err = np.append(slopes_err, slope_err)
 			except:
 				print("Failed with slicer; fi0 =", fi0)
 				pass
@@ -156,10 +160,12 @@ def fit_the_points(reg_file):
 	
 	res_file.write("Results for " + galaxy_name + ", band " + band_name + 
                     "; ds9-regions: " + reg_name + "\n")
-	res_file.write("r/R_s \t width \t abs(asym) \t asym (areas) \n")			
+	res_file.write("r/R_s \t width \t abs(asym) \t asym (areas) \t" + 
+					"slope \t slope error\n")			
 	for i in range(len(r_scaled)):
-		res_file.write(str(r_scaled[i]) + " " + str(widths[i]) + 
-                        " " + str(astry[i]) + str(astry1[i]) + "\n")
+		res_file.write(str(r_scaled[i]) + "\t" + str(widths[i]) + 
+                 "\t" + str(astry[i]) + "\t" + str(astry1[i]) + "\t" 
+                 + str(slopes[i]) + "\t" + str(slopes_err[i]) + "\n")
 	
 	res_file.close()
 	shutil.move(res_file_name, galaxy_name + "/" + band_name + "/" + reg_name)
@@ -191,11 +197,13 @@ def slice_the_arm(fi0, r0, k, R, cont_clwse):
 	r_fi0_scaled = r_fi0 / R_exp
 	delta_fi = .5 / r_fi0 # setting a step for slices smoothing
 	I = []
+	ksi = []
 	
 	for m in range(-2,3):
 		theta = fi0 + m * delta_fi
 		ksi1 = -(k * np.cos(theta) - np.sin(theta)) / (k * np.sin(theta) + 
                   np.cos(theta)) # corrected for orientation
+		ksi.append(ksi1)
 		alfa = np.arctan(ksi1)
 		x_theta = r0 * np.exp(k * theta) * np.cos(theta)
 		y_theta = r0 * np.exp(k * theta) * np.sin(theta)
@@ -233,6 +241,7 @@ def slice_the_arm(fi0, r0, k, R, cont_clwse):
 	u = np.linspace(0, len(Flux)-1, len(Flux))
 	
 	flux_sigma = np.std(II, axis=0)
+	ksi_sigma = np.std(ksi)
 	
 	raw_fig_name = str(fi0) + '_raw.eps'
 	
@@ -303,7 +312,7 @@ def slice_the_arm(fi0, r0, k, R, cont_clwse):
                   str(fi0) + ".eps", bbox_inches="tight")		
 	plt.close(fig2)
 		
-	return r_fi0_scaled, arm_width, popt[0], asym1
+	return r_fi0_scaled, arm_width, popt[0], asym1, np.mean(ksi), ksi_sigma
 	
 
 
@@ -312,7 +321,7 @@ def func(x, a, a1, x0, sigma):
 
 def func1(x, a, a1, x0, sigma, y_mid):
 	return func(x, a, a1, x0, sigma) - y_mid
-
+	
 
 file_name = sys.argv[1]
 set_of_bands = sys.argv[2]
@@ -324,7 +333,7 @@ param_file_lines = param_file.readlines()
 param_file.close()
 
 kpc_to_arcsec = float(param_file_lines[1].split()[1])
-px_to_arcsec = float(param_file_lines[2].split()[1])
+arcsec_to_px = float(param_file_lines[2].split()[1])
 dict_for_R_exp = {param_file_lines[3].split()[0] : 
                   float(param_file_lines[3].split()[1])}
 dict_for_R_exp[param_file_lines[4].split()[0]] = \
