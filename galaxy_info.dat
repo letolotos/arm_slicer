@@ -1,7 +1,6 @@
 name pgc10108
 kpc_to_arcsec .456 # for the galaxy; known from NED database
-px_to_arcsec .396 # for SDSS
+arcsec_to_px .396 # for SDSS
 g 28.4898 # exp. disk scale for g band known from decomposition
 i 28.3303 # exp. disk scale for i band
 r 28.2081 # exp. disk scale for r band
-R 20 # slice line length in px
